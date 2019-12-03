@@ -1,6 +1,9 @@
+import math
+
 # '''
 # Linked List hash table key/value pair
 # '''
+
 class LinkedPair:
     def __init__(self, key, value):
         self.key = key
@@ -15,7 +18,8 @@ class HashTable:
     def __init__(self, capacity):
         self.capacity = capacity  # Number of buckets in the hash table
         self.storage = [None] * capacity
-
+        self.count = 0
+        self.resized = False
 
     def _hash(self, key):
         '''
@@ -32,7 +36,10 @@ class HashTable:
 
         OPTIONAL STRETCH: Research and implement DJB2
         '''
-        pass
+        hash = 5381
+        for i in range(len(key)):
+            hash = ((hash << 5) + hash) + i    #hash * 33 + i
+        return hash
 
 
     def _hash_mod(self, key):
@@ -40,7 +47,7 @@ class HashTable:
         Take an arbitrary key and return a valid integer index
         within the storage capacity of the hash table.
         '''
-        return self._hash(key) % self.capacity
+        return self._hash_djb2(key) % self.capacity
 
 
     def insert(self, key, value):
@@ -61,6 +68,11 @@ class HashTable:
                 while node.next is not None:
                     node = node.next
                 node.next = newNode
+            self.count += 1
+            loadFactor = self.count / self.capacity
+            if loadFactor > 0.7:
+                self.resized = True
+                self.resize()          
             return
         else:
             node = self.storage[index]
@@ -69,8 +81,7 @@ class HashTable:
                     node.value = value
                     return
                 node = node.next
-                    
-
+         
     def remove(self, key):
         '''
         Remove the value stored with the given key.
@@ -85,17 +96,21 @@ class HashTable:
         index = self._hash_mod(key)
         if self.storage[index].key == key:
             self.storage[index] = None
-            return
-        prev_node = self.storage[index]
-        curr_node = self.storage[index].next
-        while curr_node is not None:
-            if curr_node.key == key:
-                next_node = curr_node.next
-                prev_node.next = next_node
-                break
-            prev_node = curr_node
-            curr_node = curr_node.next
+        else:    
+            prev_node = self.storage[index]
+            curr_node = self.storage[index].next
 
+            while curr_node is not None:
+                if curr_node.key == key:
+                    next_node = curr_node.next
+                    prev_node.next = next_node
+                    break
+                prev_node = curr_node
+                curr_node = curr_node.next
+        self.count -= 1
+        loadFactor = self.count / self.capacity
+        if self.resized == True and loadFactor < 0.2:
+             self.resize(0.5)  
 
     def retrieve(self, key):
         '''
@@ -113,22 +128,24 @@ class HashTable:
             node = node.next
         return None
 
-    def resize(self):
+    def resize(self, factor=2):
         '''
         Doubles the capacity of the hash table and
         rehash all key/value pairs.
 
         Fill this in.
         '''
-        self.capacity = self.capacity * 2
+        self.capacity = math.floor(self.capacity * factor)
         old_storage = self.storage
         self.storage = [None] * self.capacity
+        self.count = 0
         
         for i in range(len(old_storage)):
             node = old_storage[i]
             while node is not None:
                 self.insert(node.key, node.value)
                 node = node.next
+
 
 if __name__ == "__main__":
     # ht = HashTable(8)
@@ -172,16 +189,19 @@ if __name__ == "__main__":
     print(ht.retrieve("line_1"))
     print(ht.retrieve("line_2"))
     print(ht.retrieve("line_3"))
+    print(ht.count)
 
-    # ht.remove('line_2')
-    # ht.insert("line_3", "Testing")
-    # print(ht.retrieve("line_1"))
-    # print(ht.retrieve("line_2"))
-    # print(ht.retrieve("line_3"))
+    ht.remove('line_2')
+    ht.insert("line_3", "Testing")
+    print(ht.retrieve("line_1"))
+    print(ht.retrieve("line_2"))
+    print(ht.retrieve("line_3"))
+    print(ht.count)
+    ht.remove('line_3')
 
     # Test resizing
     old_capacity = len(ht.storage)
-    ht.resize()
+    #ht.resize()
     new_capacity = len(ht.storage)
 
     print(f"\nResized from {old_capacity} to {new_capacity}.\n")
